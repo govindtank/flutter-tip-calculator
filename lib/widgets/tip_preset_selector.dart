@@ -16,14 +16,14 @@ class TipPresetSelector extends StatefulWidget {
 }
 
 class _TipPresetSelectorState extends State<TipPresetSelector> {
-  static const List<double> presets = [10, 15, 18, 20, 22, 25];
+  static const List<double> presets = [0, 10, 15, 18, 20, 25];
 
   void _showCustomSlider(BuildContext context) {
     final theme = Theme.of(context);
     double customValue = widget.selectedPercentage;
     
     if (!presets.contains(widget.selectedPercentage)) {
-      customValue = widget.selectedPercentage.clamp(5.0, 50.0);
+      customValue = widget.selectedPercentage.clamp(0.0, 50.0);
     }
 
     showModalBottomSheet(
@@ -76,9 +76,9 @@ class _TipPresetSelectorState extends State<TipPresetSelector> {
                 ),
                 child: Slider(
                   value: customValue,
-                  min: 5,
+                  min: 0,
                   max: 50,
-                  divisions: 45,
+                  divisions: 50,
                   onChanged: (value) {
                     HapticFeedback.selectionClick();
                     setModalState(() {
@@ -91,7 +91,7 @@ class _TipPresetSelectorState extends State<TipPresetSelector> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '5%',
+                    '0%',
                     style: TextStyle(
                       color: theme.colorScheme.onSurface.withOpacity(0.5),
                     ),

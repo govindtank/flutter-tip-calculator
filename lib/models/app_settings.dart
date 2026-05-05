@@ -13,7 +13,7 @@ class AppSettings {
     this.themeId = 'violet',
     this.defaultTipPercentage = 18,
     this.defaultNumberOfPeople = 1,
-    this.defaultCurrencyCode = 'USD',
+    this.defaultCurrencyCode = 'INR',
     this.defaultRounding = RoundingOption.none,
   });
 
@@ -52,7 +52,7 @@ class AppSettings {
       themeId: json['themeId'] as String? ?? 'violet',
       defaultTipPercentage: json['defaultTipPercentage'] as int? ?? 18,
       defaultNumberOfPeople: json['defaultNumberOfPeople'] as int? ?? 1,
-      defaultCurrencyCode: json['defaultCurrencyCode'] as String? ?? 'USD',
+      defaultCurrencyCode: json['defaultCurrencyCode'] as String? ?? 'INR',
       defaultRounding: RoundingOption.values[json['defaultRounding'] as int? ?? 0],
     );
   }

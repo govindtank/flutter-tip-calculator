@@ -67,6 +67,7 @@ class _MainShellState extends State<MainShell> {
               key: const ValueKey('home'),
               currency: widget.currency,
               onNavigateToHistory: () => setState(() => _currentIndex = 1),
+              onNavigateToSettings: () => setState(() => _currentIndex = 2),
             ),
             HistoryPage(
               key: const ValueKey('history'),
