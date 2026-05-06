@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../models/models.dart';
+import '../models/calculation.dart';
+import '../themes/app_themes.dart';
 
 class RoundingSelector extends StatelessWidget {
   final RoundingOption selected;
@@ -11,83 +12,125 @@ class RoundingSelector extends StatelessWidget {
     required this.onChanged,
   });
 
+  static const List<_RoundingOptionData> options = [
+    _RoundingOptionData(
+      option: RoundingOption.none,
+      label: 'None',
+      icon: Icons.remove_circle_outline_rounded,
+    ),
+    _RoundingOptionData(
+      option: RoundingOption.roundUp,
+      label: 'Round Up',
+      icon: Icons.arrow_upward_rounded,
+      prefix: '↑',
+    ),
+    _RoundingOptionData(
+      option: RoundingOption.roundDown,
+      label: 'Round Down',
+      icon: Icons.arrow_downward_rounded,
+      prefix: '↓',
+    ),
+    _RoundingOptionData(
+      option: RoundingOption.roundToNearest,
+      label: 'Nearest',
+      icon: Icons.attach_money_rounded,
+      prefix: '\$1',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: options.map((data) {
+        return Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(
+              right: data == options.last ? 0 : 8,
+            ),
+            child: _RoundingChip(
+              data: data,
+              isSelected: selected == data.option,
+              onTap: () => onChanged(data.option),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _RoundingOptionData {
+  final RoundingOption option;
+  final String label;
+  final IconData icon;
+  final String? prefix;
+
+  const _RoundingOptionData({
+    required this.option,
+    required this.label,
+    required this.icon,
+    this.prefix,
+  });
+}
+
+class _RoundingChip extends StatelessWidget {
+  final _RoundingOptionData data;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _RoundingChip({
+    required this.data,
+    required this.isSelected,
+    required this.onTap,
+  });
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final primaryColor = theme.colorScheme.primary;
+    final glass = theme.glass;
+    final isDark = theme.brightness == Brightness.dark;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Rounding',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: theme.colorScheme.onSurface.withOpacity(0.7),
-          ),
-        ),
-        const SizedBox(height: 12),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: RoundingOption.values.map((option) {
-              final isSelected = selected == option;
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Tooltip(
-                  message: option.tooltip,
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () => onChanged(option),
-                      borderRadius: BorderRadius.circular(20),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? primaryColor
-                              : theme.colorScheme.surface,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: isSelected
-                                ? primaryColor
-                                : theme.colorScheme.onSurface.withOpacity(0.2),
-                            width: 1.5,
-                          ),
-                          boxShadow: isSelected
-                              ? [
-                                  BoxShadow(
-                                    color: primaryColor.withOpacity(0.3),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ]
-                              : null,
-                        ),
-                        child: Text(
-                          option.displayName,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: isSelected
-                                ? Colors.white
-                                : theme.colorScheme.onSurface,
-                          ),
-                        ),
-                      ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          height: 40,
+          decoration: BoxDecoration(
+            color: isSelected
+                ? glass.accent.withOpacity(isDark ? 0.15 : 0.1)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected
+                  ? glass.accent.withOpacity(isDark ? 0.8 : 0.5)
+                  : glass.border,
+              width: 1,
+            ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: glass.accent.withOpacity(0.2),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
                     ),
-                  ),
-                ),
-              );
-            }).toList(),
+                  ]
+                : null,
+          ),
+          child: Center(
+            child: Text(
+              data.prefix ?? data.label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isSelected ? glass.accent : glass.textSecondary,
+              ),
+            ),
           ),
         ),
-      ],
+      ),
     );
   }
 }

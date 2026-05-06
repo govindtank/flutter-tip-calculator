@@ -1,184 +1,197 @@
 import 'package:flutter/material.dart';
+import '../themes/app_themes.dart';
 
 class ThemeSelectorSheet extends StatelessWidget {
-  final String currentThemeId;
+  final String selectedThemeId;
   final bool isDarkMode;
-  final Function(String) onThemeChanged;
-  final Function(bool) onDarkModeChanged;
+  final ValueChanged<String> onThemeChanged;
+  final ValueChanged<bool> onDarkModeChanged;
 
   const ThemeSelectorSheet({
     super.key,
-    required this.currentThemeId,
+    required this.selectedThemeId,
     required this.isDarkMode,
     required this.onThemeChanged,
     required this.onDarkModeChanged,
   });
 
-  List<Color> _getThemeColors(String themeId) {
-    switch (themeId) {
-      case 'violet':
-        return [const Color(0xFF7C3AED), const Color(0xFFA855F7)];
-      case 'ocean':
-        return [const Color(0xFF0284C7), const Color(0xFF38BDF8)];
-      case 'emerald':
-        return [const Color(0xFF059669), const Color(0xFF34D399)];
-      case 'amber':
-        return [const Color(0xFFD97706), const Color(0xFFFCD34D)];
-      case 'rose':
-        return [const Color(0xFFE11D48), const Color(0xFFFB7185)];
-      case 'slate':
-        return [const Color(0xFF475569), const Color(0xFF94A3B8)];
-      default:
-        return [const Color(0xFF7C3AED), const Color(0xFFA855F7)];
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final themes = _getAvailableThemes();
-
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.onSurface.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'Choose Theme',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: themes.map((themeId) {
-              final colors = _getThemeColors(themeId);
-              final isSelected = currentThemeId == themeId;
-
-              return GestureDetector(
-                onTap: () => onThemeChanged(themeId),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: colors,
-                    ),
-                    border: Border.all(
-                      color: isSelected ? Colors.white : Colors.transparent,
-                      width: 3,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: colors[0].withOpacity(isSelected ? 0.5 : 0.2),
-                        blurRadius: isSelected ? 12 : 6,
-                        spreadRadius: isSelected ? 2 : 0,
-                      ),
-                    ],
-                  ),
-                  child: isSelected
-                      ? const Icon(
-                          Icons.check,
-                          color: Colors.white,
-                          size: 24,
-                        )
-                      : null,
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            _getThemeName(currentThemeId),
-            style: TextStyle(
-              fontSize: 14,
-              color: theme.colorScheme.onSurface.withOpacity(0.7),
-            ),
-          ),
-          const SizedBox(height: 32),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: theme.colorScheme.onSurface.withOpacity(0.1),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      isDarkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
-                      color: theme.colorScheme.primary,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      isDarkMode ? 'Dark Mode' : 'Light Mode',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: theme.colorScheme.onSurface,
-                      ),
-                    ),
-                  ],
-                ),
-                Switch(
-                  value: isDarkMode,
-                  onChanged: onDarkModeChanged,
-                  activeColor: theme.colorScheme.primary,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-        ],
+  static Future<void> show(
+    BuildContext context, {
+    required String selectedThemeId,
+    required bool isDarkMode,
+    required ValueChanged<String> onThemeChanged,
+    required ValueChanged<bool> onDarkModeChanged,
+  }) {
+    return showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => ThemeSelectorSheet(
+        selectedThemeId: selectedThemeId,
+        isDarkMode: isDarkMode,
+        onThemeChanged: onThemeChanged,
+        onDarkModeChanged: onDarkModeChanged,
       ),
     );
   }
 
-  List<String> _getAvailableThemes() {
-    return ['violet', 'ocean', 'emerald', 'amber', 'rose', 'slate'];
-  }
+  static const List<_ThemeOption> themes = [
+    _ThemeOption(id: 'violet', label: 'Violet', color: Color(0xFF7C3AED)),
+    _ThemeOption(id: 'ocean', label: 'Ocean', color: Color(0xFF0284C7)),
+    _ThemeOption(id: 'emerald', label: 'Emerald', color: Color(0xFF059669)),
+    _ThemeOption(id: 'amber', label: 'Amber', color: Color(0xFFD97706)),
+    _ThemeOption(id: 'rose', label: 'Rose', color: Color(0xFFE11D48)),
+    _ThemeOption(id: 'slate', label: 'Slate', color: Color(0xFF475569)),
+  ];
 
-  String _getThemeName(String themeId) {
-    switch (themeId) {
-      case 'violet':
-        return 'Violet';
-      case 'ocean':
-        return 'Ocean';
-      case 'emerald':
-        return 'Emerald';
-      case 'amber':
-        return 'Amber';
-      case 'rose':
-        return 'Rose';
-      case 'slate':
-        return 'Slate';
-      default:
-        return 'Violet';
-    }
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final glass = theme.glass;
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: glass.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border.all(color: glass.border),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: glass.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 24),
+              // Title
+              Text(
+                'APPEARANCE',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  letterSpacing: 1.5,
+                  color: glass.textTertiary,
+                ),
+              ),
+              const SizedBox(height: 24),
+              // Theme Colors
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: themes.map((themeOption) {
+                  final isSelected = selectedThemeId == themeOption.id;
+                  return GestureDetector(
+                    onTap: () => onThemeChanged(themeOption.id),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: themeOption.color,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isSelected
+                                  ? glass.textPrimary
+                                  : Colors.transparent,
+                              width: 3,
+                            ),
+                            boxShadow: isSelected
+                                ? [
+                                    BoxShadow(
+                                      color: themeOption.color.withOpacity(0.5),
+                                      blurRadius: 12,
+                                      spreadRadius: 2,
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: isSelected
+                              ? const Icon(
+                                  Icons.check_rounded,
+                                  color: Colors.white,
+                                  size: 24,
+                                )
+                              : null,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          themeOption.label,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight:
+                                isSelected ? FontWeight.w600 : FontWeight.w400,
+                            color: isSelected
+                                ? glass.textPrimary
+                                : glass.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 32),
+              // Divider
+              Container(
+                height: 1,
+                color: glass.border,
+              ),
+              const SizedBox(height: 24),
+              // Dark Mode Toggle
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        isDarkMode
+                            ? Icons.dark_mode_rounded
+                            : Icons.light_mode_rounded,
+                        color: glass.textPrimary,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        isDarkMode ? 'Dark Mode' : 'Light Mode',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: glass.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Switch(
+                    value: isDarkMode,
+                    onChanged: onDarkModeChanged,
+                    activeColor: glass.accent,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
+}
+
+class _ThemeOption {
+  final String id;
+  final String label;
+  final Color color;
+
+  const _ThemeOption({
+    required this.id,
+    required this.label,
+    required this.color,
+  });
 }

@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/models.dart';
-import '../utils/formatters.dart';
+import '../services/storage_service.dart';
+import '../utils/share_utils.dart';
+import '../themes/app_themes.dart';
 import '../widgets/widgets.dart';
 
 class HomePage extends StatefulWidget {
+  final AppSettings settings;
   final Currency currency;
-  final VoidCallback onNavigateToHistory;
-  final VoidCallback onNavigateToSettings;
+  final VoidCallback onSettingsTap;
 
   const HomePage({
     super.key,
+    required this.settings,
     required this.currency,
-    required this.onNavigateToHistory,
-    required this.onNavigateToSettings,
+    required this.onSettingsTap,
   });
 
   @override
@@ -20,95 +23,93 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  double _billAmount = 0;
-  double _tipPercentage = 18;
-  int _numberOfPeople = 1;
-  RoundingOption _rounding = RoundingOption.none;
-  TipCalculation? _calculation;
+  late double _billAmount;
+  late double _tipPercentage;
+  late int _numberOfPeople;
+  late RoundingOption _roundingOption;
 
   @override
   void initState() {
     super.initState();
-    _calculate();
+    _billAmount = 0;
+    _tipPercentage = widget.settings.defaultTipPercentage.toDouble();
+    _numberOfPeople = widget.settings.defaultNumberOfPeople;
+    _roundingOption = widget.settings.defaultRounding;
   }
 
-  void _calculate() {
-    // Always calculate — show results even when bill is 0
-    _calculation = TipCalculation.calculate(
+  TipCalculation get _calculation {
+    return TipCalculation.calculate(
       billAmount: _billAmount,
       tipPercentage: _tipPercentage,
       numberOfPeople: _numberOfPeople,
-      rounding: _rounding,
+      rounding: _roundingOption,
     );
-    setState(() {});
   }
 
-  void _onBillChanged(double? amount) {
-    setState(() {
-      _billAmount = amount ?? 0;
-    });
-    _calculate();
+  void _copyToClipboard() {
+    final calc = _calculation;
+    final text = '''
+Bill: ${widget.currency.symbol}${calc.billAmount.toStringAsFixed(2)}
+Tip: ${calc.tipPercentage.toInt()}%
+Total: ${widget.currency.symbol}${calc.totalAmount.toStringAsFixed(2)}
+Per Person: ${widget.currency.symbol}${calc.perPersonTotal.toStringAsFixed(2)}
+''';
+    Clipboard.setData(ClipboardData(text: text.trim()));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Copied to clipboard'),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
   }
 
-  void _onTipChanged(double percentage) {
-    setState(() {
-      _tipPercentage = percentage;
-    });
-    _calculate();
+  void _share() {
+    final calc = _calculation;
+    ShareUtils.shareCalculation(calc, widget.currency);
   }
 
-  void _onSplitChanged(int count) {
-    setState(() {
-      _numberOfPeople = count;
-    });
-    _calculate();
-  }
-
-  void _onRoundingChanged(RoundingOption rounding) {
-    setState(() {
-      _rounding = rounding;
-    });
-    _calculate();
+  void _saveCalculation() async {
+    final calc = _calculation;
+    if (_billAmount > 0) {
+      await StorageService.addToHistory(calc);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Saved to history'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Theme.of(context).colorScheme.surface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final primaryColor = theme.colorScheme.primary;
+    final glass = theme.glass;
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF0D0D0F) : glass.surface,
       body: Stack(
         children: [
-          // ── Layer 1: Rich gradient background ──
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                stops: const [0.0, 0.3, 0.7, 1.0],
-                colors: [
-                  primaryColor.withOpacity(0.12),
-                  primaryColor.withOpacity(0.05),
-                  theme.scaffoldBackgroundColor,
-                  theme.scaffoldBackgroundColor,
-                ],
-              ),
-            ),
-          ),
-
-          // ── Layer 2: Decorative floating circles ──
+          // Background decorations
           Positioned(
-            top: -60,
-            right: -60,
+            top: -100,
+            right: -100,
             child: Container(
-              width: 200,
-              height: 200,
+              width: 300,
+              height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    primaryColor.withOpacity(0.15),
-                    primaryColor.withOpacity(0.0),
+                    glass.accent.withOpacity(0.08),
+                    glass.accent.withOpacity(0),
                   ],
                 ),
               ),
@@ -116,199 +117,181 @@ class _HomePageState extends State<HomePage> {
           ),
           Positioned(
             bottom: 100,
-            left: -80,
+            left: -50,
             child: Container(
-              width: 250,
-              height: 250,
+              width: 200,
+              height: 200,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    primaryColor.withOpacity(0.08),
-                    primaryColor.withOpacity(0.0),
+                    glass.accent.withOpacity(0.05),
+                    glass.accent.withOpacity(0),
                   ],
                 ),
               ),
             ),
           ),
-
-          // ── Layer 3: Subtle dot grid pattern ──
-          Positioned.fill(
-            child: Opacity(
-              opacity: 0.03,
-              child: CustomPaint(
-                painter: _DotGridPainter(color: primaryColor),
-              ),
-            ),
-          ),
-
-          // ── Layer 4: Main scrollable content ──
+          // Main content
           SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final isWide = constraints.maxWidth > 600;
-                
-                return SingleChildScrollView(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isWide ? 48 : 20,
-                    vertical: 16,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            child: Column(
+              children: [
+                // App Bar
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Header
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Tip Calculator',
-                                style: TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  color: theme.colorScheme.onSurface,
-                                ),
-                              ),
-                              Text(
-                                'Calculate your tip easily',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                                ),
-                              ),
-                            ],
-                          ),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.surface,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: IconButton(
-                              icon: Icon(
-                                Icons.settings_rounded,
-                                color: theme.colorScheme.onSurface.withOpacity(0.7),
-                              ),
-                              onPressed: widget.onNavigateToSettings,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 32),
-                      
-                      // Bill Amount Input
-                      TipInputField(
-                        currency: widget.currency,
-                        onChanged: _onBillChanged,
-                        initialValue: _billAmount > 0 ? _billAmount : null,
-                      ),
-                      const SizedBox(height: 24),
-                      
-                      // Tip Percentage Selector
-                      TipPresetSelector(
-                        selectedPercentage: _tipPercentage,
-                        onPercentageChanged: _onTipChanged,
-                      ),
-                      const SizedBox(height: 24),
-                      
-                      // Split Selector
-                      SplitSelector(
-                        count: _numberOfPeople,
-                        onChanged: _onSplitChanged,
-                      ),
-                      const SizedBox(height: 24),
-                      
-                      // Rounding Selector
-                      RoundingSelector(
-                        selected: _rounding,
-                        onChanged: _onRoundingChanged,
-                      ),
-                      const SizedBox(height: 32),
-                      
-                      // Results Card
-                      ResultsCard(
-                        calculation: _calculation,
-                        currency: widget.currency,
-                        onSave: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Saved to history!'),
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 24),
-                      
-                      // Quick Actions
                       Text(
-                        'Quick Actions',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: theme.colorScheme.onSurface.withOpacity(0.7),
+                        'TipCalc',
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      QuickActionsBar(
-                        calculation: _calculation,
-                        currency: widget.currency,
-                        onCalculationChanged: (calc) {
-                          setState(() {
-                            _calculation = calc;
-                            _billAmount = calc.billAmount;
-                            _tipPercentage = calc.tipPercentage;
-                            _numberOfPeople = calc.numberOfPeople;
-                            _rounding = calc.rounding;
-                          });
-                        },
+                      IconButton(
+                        onPressed: widget.onSettingsTap,
+                        icon: Icon(
+                          Icons.settings_rounded,
+                          color: glass.textSecondary,
+                        ),
                       ),
-                      const SizedBox(height: 100),
                     ],
                   ),
-                );
-              },
+                ),
+                // Content
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Results Card
+                        ResultsCard(
+                          calculation: _calculation,
+                          currency: widget.currency,
+                          onCopy: _copyToClipboard,
+                          onShare: _share,
+                          onSave: _saveCalculation,
+                        ),
+                        const SizedBox(height: 32),
+                        // Bill Amount
+                        _SectionLabel(label: 'BILL AMOUNT'),
+                        const SizedBox(height: 8),
+                        TipInputField(
+                          currency: widget.currency,
+                          initialValue: _billAmount,
+                          onChanged: (value) {
+                            setState(() {
+                              _billAmount = value;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 24),
+                        // Tip Percentage
+                        _SectionLabel(label: 'TIP PERCENTAGE'),
+                        const SizedBox(height: 8),
+                        TipPresetSelector(
+                          selected: _tipPercentage,
+                          onChanged: (value) {
+                            setState(() {
+                              _tipPercentage = value;
+                            });
+                          },
+                          onCustomTap: () {
+                            CustomTipSheet.show(
+                              context,
+                              initialValue: _tipPercentage,
+                              onChanged: (value) {
+                                setState(() {
+                                  _tipPercentage = value;
+                                });
+                              },
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 24),
+                        // Split Between
+                        _SectionLabel(label: 'SPLIT BETWEEN'),
+                        const SizedBox(height: 8),
+                        SplitSelector(
+                          value: _numberOfPeople,
+                          onChanged: (value) {
+                            setState(() {
+                              _numberOfPeople = value;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 24),
+                        // Rounding
+                        _SectionLabel(label: 'ROUNDING'),
+                        const SizedBox(height: 8),
+                        RoundingSelector(
+                          selected: _roundingOption,
+                          onChanged: (value) {
+                            setState(() {
+                              _roundingOption = value;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 24),
+                        // Quick Actions
+                        _SectionLabel(label: 'QUICK ACTIONS'),
+                        const SizedBox(height: 8),
+                        QuickActionsBar(
+                          onRoundToOne: () {
+                            setState(() {
+                              _roundingOption = RoundingOption.roundToNearest;
+                            });
+                          },
+                          onSplitThree: () {
+                            setState(() {
+                              _numberOfPeople = 3;
+                            });
+                          },
+                          onTipPlus: () {
+                            setState(() {
+                              _tipPercentage = (_tipPercentage + 5).clamp(0, 100);
+                            });
+                          },
+                          onTipMinus: () {
+                            setState(() {
+                              _tipPercentage = (_tipPercentage - 5).clamp(0, 100);
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 100),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: widget.onNavigateToHistory,
-        child: const Icon(Icons.history_rounded),
       ),
     );
   }
 }
 
-/// ── Subtle dot grid background pattern ──
-class _DotGridPainter extends CustomPainter {
-  final Color color;
+class _SectionLabel extends StatelessWidget {
+  final String label;
 
-  _DotGridPainter({required this.color});
+  const _SectionLabel({required this.label});
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 2
-      ..style = PaintingStyle.fill;
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final glass = theme.glass;
 
-    const spacing = 24.0;
-    for (double x = 0; x < size.width; x += spacing) {
-      for (double y = 0; y < size.height; y += spacing) {
-        canvas.drawCircle(Offset(x, y), 1.5, paint);
-      }
-    }
+    return Text(
+      label,
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 1.0,
+        color: glass.textTertiary,
+      ),
+    );
   }
-
-  @override
-  bool shouldRepaint(_DotGridPainter oldDelegate) => false;
 }

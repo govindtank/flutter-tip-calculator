@@ -1,306 +1,186 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import '../themes/app_themes.dart';
 
 class SplitSelector extends StatefulWidget {
-  final int count;
+  final int value;
   final ValueChanged<int> onChanged;
-  final int minCount;
-  final int maxCount;
+  final int min;
+  final int max;
 
   const SplitSelector({
     super.key,
-    required this.count,
+    required this.value,
     required this.onChanged,
-    this.minCount = 1,
-    this.maxCount = 50,
+    this.min = 1,
+    this.max = 50,
   });
 
   @override
   State<SplitSelector> createState() => _SplitSelectorState();
 }
 
-class _SplitSelectorState extends State<SplitSelector>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _slideAnimation;
-  bool _isIncrementing = false;
-  bool _isDecrementing = false;
+class _SplitSelectorState extends State<SplitSelector> {
+  Timer? _longPressTimer;
+  int _incrementDirection = 0;
 
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 200),
-    );
-    _slideAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
+  void _startLongPress(int direction) {
+    _incrementDirection = direction;
+    _longPressTimer?.cancel();
+    _longPressTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      final newValue = widget.value + _incrementDirection;
+      if (newValue >= widget.min && newValue <= widget.max) {
+        widget.onChanged(newValue);
+      }
+    });
   }
 
-  @override
-  void didUpdateWidget(SplitSelector oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.count != widget.count) {
-      _controller.forward().then((_) => _controller.reset());
+  void _stopLongPress() {
+    _longPressTimer?.cancel();
+    _longPressTimer = null;
+    _incrementDirection = 0;
+  }
+
+  void _increment() {
+    if (widget.value < widget.max) {
+      widget.onChanged(widget.value + 1);
+    }
+  }
+
+  void _decrement() {
+    if (widget.value > widget.min) {
+      widget.onChanged(widget.value - 1);
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _longPressTimer?.cancel();
     super.dispose();
-  }
-
-  void _increment() {
-    if (widget.count < widget.maxCount) {
-      HapticFeedback.lightImpact();
-      widget.onChanged(widget.count + 1);
-    } else {
-      HapticFeedback.heavyImpact();
-    }
-  }
-
-  void _decrement() {
-    if (widget.count > widget.minCount) {
-      HapticFeedback.lightImpact();
-      widget.onChanged(widget.count - 1);
-    } else {
-      HapticFeedback.heavyImpact();
-    }
-  }
-
-  void _startIncrement() {
-    setState(() => _isIncrementing = true);
-    _increment();
-    _startContinuousIncrement();
-  }
-
-  void _startDecrement() {
-    setState(() => _isDecrementing = true);
-    _decrement();
-    _startContinuousDecrement();
-  }
-
-  void _startContinuousIncrement() {
-    Future.delayed(const Duration(milliseconds: 150), () {
-      if (_isIncrementing && widget.count < widget.maxCount) {
-        widget.onChanged(widget.count + 1);
-        _startContinuousIncrement();
-      }
-    });
-  }
-
-  void _startContinuousDecrement() {
-    Future.delayed(const Duration(milliseconds: 150), () {
-      if (_isDecrementing && widget.count > widget.minCount) {
-        widget.onChanged(widget.count - 1);
-        _startContinuousDecrement();
-      }
-    });
-  }
-
-  void _stopContinuous() {
-    setState(() {
-      _isIncrementing = false;
-      _isDecrementing = false;
-    });
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final primaryColor = theme.colorScheme.primary;
+    final glass = theme.glass;
+    final isDark = theme.brightness == Brightness.dark;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
-          'Split Between',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: theme.colorScheme.onSurface.withOpacity(0.7),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: theme.colorScheme.onSurface.withOpacity(0.1),
+        // Minus Button
+        GestureDetector(
+          onTap: _decrement,
+          onLongPressStart: (_) => _startLongPress(-1),
+          onLongPressEnd: (_) => _stopLongPress(),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: const Color(0x0DFFFFFF),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: glass.border,
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.remove_rounded,
+              size: 24,
+              color: widget.value > widget.min
+                  ? glass.textPrimary
+                  : glass.textTertiary,
             ),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _CircleButton(
-                icon: Icons.remove,
-                onTap: _decrement,
-                onLongPressStart: (_) => _startDecrement(),
-                onLongPressEnd: (_) => _stopContinuous(),
-                enabled: widget.count > widget.minCount,
-                color: primaryColor,
-              ),
-              const SizedBox(width: 24),
-              AnimatedBuilder(
-                animation: _slideAnimation,
-                builder: (context, child) {
-                  return SizedBox(
-                    width: 80,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        if (_controller.isAnimating)
-                          Transform.translate(
-                            offset: Offset(
-                              0,
-                              -20 * (1 - _slideAnimation.value),
-                            ),
-                            child: Opacity(
-                              opacity: 1 - _slideAnimation.value,
-                              child: Text(
-                                '${widget.count - 1}',
-                                style: TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  color: theme.colorScheme.onSurface.withOpacity(0.3),
-                                ),
-                              ),
-                            ),
-                          ),
-                        Text(
-                          '${widget.count}',
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: theme.colorScheme.onSurface,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(width: 24),
-              _CircleButton(
-                icon: Icons.add,
-                onTap: _increment,
-                onLongPressStart: (_) => _startIncrement(),
-                onLongPressEnd: (_) => _stopContinuous(),
-                enabled: widget.count < widget.maxCount,
-                color: primaryColor,
-              ),
-            ],
-          ),
         ),
-        const SizedBox(height: 8),
-        Center(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: Text(
-              widget.count == 1 ? 'person' : 'people',
-              key: ValueKey(widget.count),
+        const SizedBox(width: 24),
+        // Number Display
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              transitionBuilder: (child, animation) {
+                return SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.5),
+                    end: Offset.zero,
+                  ).animate(CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                  )),
+                  child: FadeTransition(
+                    opacity: animation,
+                    child: child,
+                  ),
+                );
+              },
+              child: Text(
+                '${widget.value}',
+                key: ValueKey(widget.value),
+                style: TextStyle(
+                  fontSize: 36,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -1,
+                  color: glass.accent,
+                  height: 1,
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              widget.value == 1 ? 'person' : 'people',
               style: TextStyle(
                 fontSize: 14,
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                fontWeight: FontWeight.w500,
+                color: glass.textSecondary,
               ),
+            ),
+          ],
+        ),
+        const SizedBox(width: 24),
+        // Plus Button
+        GestureDetector(
+          onTap: _increment,
+          onLongPressStart: (_) => _startLongPress(1),
+          onLongPressEnd: (_) => _stopLongPress(),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: const Color(0x0DFFFFFF),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: glass.border,
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.add_rounded,
+              size: 24,
+              color: widget.value < widget.max
+                  ? glass.textPrimary
+                  : glass.textTertiary,
             ),
           ),
         ),
       ],
-    );
-  }
-}
-
-class _CircleButton extends StatefulWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  final Function(LongPressStartDetails) onLongPressStart;
-  final Function(LongPressEndDetails) onLongPressEnd;
-  final bool enabled;
-  final Color color;
-
-  const _CircleButton({
-    required this.icon,
-    required this.onTap,
-    required this.onLongPressStart,
-    required this.onLongPressEnd,
-    required this.enabled,
-    required this.color,
-  });
-
-  @override
-  State<_CircleButton> createState() => _CircleButtonState();
-}
-
-class _CircleButtonState extends State<_CircleButton>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 100),
-    );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.9).animate(_controller);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => _controller.forward(),
-      onTapUp: (_) {
-        _controller.reverse();
-        widget.onTap();
-      },
-      onTapCancel: () => _controller.reverse(),
-      onLongPressStart: widget.onLongPressStart,
-      onLongPressEnd: widget.onLongPressEnd,
-      child: AnimatedBuilder(
-        animation: _scaleAnimation,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: _scaleAnimation.value,
-            child: child,
-          );
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: widget.enabled
-                ? widget.color.withOpacity(0.1)
-                : widget.color.withOpacity(0.05),
-            border: Border.all(
-              color: widget.enabled
-                  ? widget.color.withOpacity(0.3)
-                  : widget.color.withOpacity(0.1),
-              width: 2,
-            ),
-          ),
-          child: Icon(
-            widget.icon,
-            color: widget.enabled
-                ? widget.color
-                : widget.color.withOpacity(0.3),
-            size: 24,
-          ),
-        ),
-      ),
     );
   }
 }
